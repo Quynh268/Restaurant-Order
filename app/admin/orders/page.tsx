@@ -17,10 +17,14 @@ export type OrderUI = {
   total_amount: number;
   created_at: string;
   customer_name: string;
+  paymentMethod?: "CASH" | "CK" | null;
+  orderType: "DINE_IN" | "TAKEAWAY";
   items: {
+    food_id: number;
     food_name: string;
     quantity: number;
     price: number;
+    image_url?: string | null;
   }[];
 };
 
@@ -46,7 +50,7 @@ export default function OrdersPage() {
     done: 0,
   });
 
-  // --- FETCH ORDERS ---
+  // --- HÀM TẢI DANH SÁCH ĐƠN (FETCH ORDERS) ---
   const fetchOrders = useCallback(async () => {
     setLoading(true);
 
@@ -54,48 +58,64 @@ export default function OrdersPage() {
       .from("orders")
       .select(
         `
-        id,
-        status,
-        total_amount,
-        created_at,
-        customer_name,
+        id, status, total_amount, created_at, customer_name, order_type,
         tables:table_id ( code ),
         order_items (
-          food_name, 
+          food_id,
           quantity,
           price,
-          foods ( name ) 
-        )
+          food_name, 
+          foods ( name, image_url )
+        ),
+        payments ( method )
       `
       )
       .in("status", TAB_TO_STATUS[tab])
       .order("created_at", { ascending: true });
 
-    if (error) {
+    if (!error) {
+      const mapped: OrderUI[] = (data ?? []).map((o: any) => {
+        let method = null;
+
+        // Xử lý payment (chấp nhận cả mảng và object)
+        if (Array.isArray(o.payments) && o.payments.length > 0) {
+          method = o.payments[0].method;
+        } else if (o.payments && typeof o.payments === "object") {
+          method = o.payments.method;
+        }
+
+        return {
+          // --- CÁC TRƯỜNG BẮT BUỘC (ĐÃ SỬA LẠI ĐẦY ĐỦ) ---
+          id: o.id,
+          code: `#${o.id.toString().padStart(6, "0")}`,
+          tableCode: o.tables?.code ?? "—",
+          status: o.status,
+          total_amount: o.total_amount,
+          created_at: o.created_at,
+          customer_name: o.customer_name || "Vãng lai",
+          paymentMethod: method,
+          orderType: o.order_type || "DINE_IN",
+
+          // --- DANH SÁCH MÓN ---
+          items:
+            o.order_items?.map((item: any) => ({
+              food_id: item.food_id,
+              food_name: item.food_name || item.foods?.name,
+              quantity: item.quantity,
+              price: item.price,
+              image_url: item.foods?.image_url,
+            })) || [],
+        };
+      });
+      setOrders(mapped);
+    } else {
       console.error("Lỗi tải đơn:", error);
       setOrders([]);
-    } else {
-      const mapped: OrderUI[] = (data ?? []).map((o: any) => ({
-        id: o.id,
-        code: `#${o.id.toString().padStart(6, "0")}`,
-        tableCode: o.tables?.code ?? "—",
-        status: o.status,
-        total_amount: o.total_amount,
-        created_at: o.created_at,
-        customer_name: o.customer_name || "Vãng lai",
-        items:
-          o.order_items?.map((item: any) => ({
-            food_name: item.food_name || item.foods?.name || "Món không tên",
-            quantity: item.quantity,
-            price: item.price,
-          })) || [],
-      }));
-      setOrders(mapped);
     }
     setLoading(false);
   }, [tab]);
 
-  // --- FETCH COUNTS ---
+  // --- HÀM ĐẾM SỐ LƯỢNG ---
   const fetchCounts = async () => {
     const [p, c, a, d] = await Promise.all([
       supabase
@@ -124,6 +144,7 @@ export default function OrdersPage() {
     });
   };
 
+  // --- USE EFFECT ---
   useEffect(() => {
     fetchOrders();
     fetchCounts();
@@ -145,7 +166,7 @@ export default function OrdersPage() {
     };
   }, [fetchOrders]);
 
-  // --- UPDATE STATUS ---
+  // --- CÁC HÀM ACTION ---
   async function updateStatus(id: number, status: OrderStatus) {
     const { error } = await supabase
       .from("orders")
@@ -157,31 +178,22 @@ export default function OrdersPage() {
     }
   }
 
-  // --- XỬ LÝ THANH TOÁN & IN ẤN ---
   async function handlePayment(order: OrderUI, method: "CASH" | "CK") {
     try {
-      // 1. Giả lập in hóa đơn (Sau này bạn thay bằng lệnh in thật)
       if (method === "CK") {
-        alert(
-          `🖨️ Đang in hóa đơn kèm QR Code (Chuyển khoản) cho bàn ${order.tableCode}...`
-        );
+        alert(`🖨️ In hóa đơn QR (Chuyển khoản) - Bàn ${order.tableCode}`);
       } else {
-        alert(
-          `🖨️ Đang in hóa đơn thường (Tiền mặt) cho bàn ${order.tableCode}...`
-        );
+        alert(`🖨️ In hóa đơn thường (Tiền mặt) - Bàn ${order.tableCode}`);
       }
 
-      // 2. Ghi nhận thanh toán vào DB
       const { error: payError } = await supabase.from("payments").insert({
         order_id: order.id,
         amount: order.total_amount,
-        method: method, // 'CASH' hoặc 'CK'
+        method: method,
         paid_at: new Date().toISOString(),
       });
-
       if (payError) throw payError;
 
-      // 3. Hoàn thành đơn
       await updateStatus(order.id, "DONE");
     } catch (err: any) {
       alert("Lỗi thanh toán: " + err.message);
@@ -197,6 +209,7 @@ export default function OrdersPage() {
     }
   }
 
+  // --- RENDER ---
   return (
     <div className="min-h-screen bg-gray-100 pb-10">
       <OrdersHeader activeTab={tab} counts={counts} onChange={setTab} />
@@ -225,9 +238,12 @@ export default function OrdersPage() {
               else if (order.status === "CONFIRMED")
                 updateStatus(order.id, "AWAIT_PAYMENT");
             }}
-            // Truyền hàm thanh toán riêng
             onPayment={(method) => handlePayment(order, method)}
             onDelete={() => deleteOrder(order.id)}
+            onRefresh={() => {
+              fetchOrders();
+              fetchCounts();
+            }}
           />
         ))}
       </div>

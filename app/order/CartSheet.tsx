@@ -92,6 +92,7 @@ export default function CartSheet({ open, onClose }: Props) {
           total_amount: totalPrice,
           customer_name: customerName,
           note: note,
+          order_type: orderType,
           // created_at tự động sinh
         })
         .select()

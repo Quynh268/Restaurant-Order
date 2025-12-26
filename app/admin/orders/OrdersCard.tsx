@@ -1,10 +1,15 @@
+"use client";
+
+import { useState } from "react";
 import { OrderUI } from "./page";
+import EditOrderModal from "./EditOrderModal";
 
 type Props = {
   order: OrderUI;
-  onNextStep: () => void; // Dùng cho chuyển trạng thái thường (Xác nhận, Lên món)
-  onPayment: (method: "CASH" | "CK") => void; // Dùng riêng cho thanh toán
+  onNextStep: () => void;
+  onPayment: (method: "CASH" | "CK") => void;
   onDelete: () => void;
+  onRefresh?: () => void; // Hàm reload khi save xong
 };
 
 export default function OrdersCard({
@@ -12,13 +17,13 @@ export default function OrdersCard({
   onNextStep,
   onPayment,
   onDelete,
+  onRefresh,
 }: Props) {
-  // Logic hiển thị Badge loại đơn
-  const isTakeaway =
-    ["MV", "00", "MANGVE"].includes(order.tableCode) ||
-    order.tableCode.startsWith("MV");
+  // State điều khiển mở Modal
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
-  // Hàm xử lý In lại hóa đơn (Ở trạng thái DONE)
+  const isTakeaway = order.orderType === "TAKEAWAY";
+
   const handleReprint = () => {
     alert(`🖨️ Đang in lại hóa đơn (Không QR) cho bàn ${order.tableCode}...`);
   };
@@ -27,6 +32,7 @@ export default function OrdersCard({
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full transition-shadow hover:shadow-md">
       {/* --- HEADER --- */}
       <div className="p-4 border-b border-gray-50 flex justify-between items-start">
+        {/* Cột trái: Thông tin đơn & Khách */}
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="font-bold text-gray-800 text-lg">
@@ -44,6 +50,7 @@ export default function OrdersCard({
             KHÁCH: {order.customer_name}
           </div>
 
+          {/* Badge: Mang về / Tại bàn */}
           {isTakeaway ? (
             <span className="inline-block bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded">
               MANG VỀ
@@ -55,13 +62,30 @@ export default function OrdersCard({
           )}
         </div>
 
-        <div className="text-right">
+        {/* Cột phải: Bàn & Thanh toán */}
+        <div className="text-right flex flex-col items-end">
           <div className="text-orange-600 font-black text-3xl leading-none">
             {order.tableCode}
           </div>
           <div className="text-[10px] font-bold text-gray-300 uppercase mt-1">
             BÀN
           </div>
+
+          {/* --- VỊ TRÍ MỚI CHO BADGE THANH TOÁN (Chỉ hiện khi HOÀN THÀNH) --- */}
+          {order.status === "DONE" && (
+            <div className="mt-2">
+              {order.paymentMethod === "CASH" && (
+                <span className="inline-block bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded border border-yellow-200">
+                  TIỀN MẶT
+                </span>
+              )}
+              {order.paymentMethod === "CK" && (
+                <span className="inline-block bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded border border-green-200">
+                  CHUYỂN KHOẢN
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -87,7 +111,7 @@ export default function OrdersCard({
         ))}
       </div>
 
-      {/* --- FOOTER: ACTION BUTTONS --- */}
+      {/* --- FOOTER: TỔNG TIỀN & NÚT BẤM --- */}
       <div className="p-4 bg-gray-50/50 border-t border-gray-100 mt-auto">
         <div className="flex justify-between items-end mb-4">
           <span className="text-xs font-bold text-gray-400 uppercase pb-1">
@@ -99,13 +123,13 @@ export default function OrdersCard({
         </div>
 
         <div className="space-y-2">
-          {/* 1. CHỜ XÁC NHẬN */}
+          {/* PENDING */}
           {order.status === "PENDING" && (
             <>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   className="w-full bg-white border border-gray-200 text-gray-700 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-50 transition"
-                  onClick={() => alert("Chức năng chỉnh sửa đang phát triển")}
+                  onClick={() => setIsEditOpen(true)}
                 >
                   Chỉnh sửa
                 </button>
@@ -125,7 +149,7 @@ export default function OrdersCard({
             </>
           )}
 
-          {/* 2. ĐANG LÀM */}
+          {/* CONFIRMED */}
           {order.status === "CONFIRMED" && (
             <button
               onClick={onNextStep}
@@ -135,7 +159,7 @@ export default function OrdersCard({
             </button>
           )}
 
-          {/* 3. CHỜ THANH TOÁN (Logic mới) */}
+          {/* AWAIT_PAYMENT */}
           {order.status === "AWAIT_PAYMENT" && (
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -159,7 +183,7 @@ export default function OrdersCard({
             </div>
           )}
 
-          {/* 4. HOÀN THÀNH */}
+          {/* DONE - Chỉ còn nút in lại, badge đã chuyển lên header */}
           {order.status === "DONE" && (
             <button
               onClick={handleReprint}
@@ -170,6 +194,16 @@ export default function OrdersCard({
           )}
         </div>
       </div>
+      {isEditOpen && (
+        <EditOrderModal
+          order={order}
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          onSave={() => {
+            if (onRefresh) onRefresh(); // Reload list đơn
+          }}
+        />
+      )}
     </div>
   );
 }
