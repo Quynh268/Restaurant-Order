@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
+import { supabase } from "@/lib/supabaseClient";
 
 /* ================== TYPES ================== */
 enum OrderType {
@@ -17,7 +18,8 @@ type Props = {
 
 /* ================== COMPONENT ================== */
 export default function CartSheet({ open, onClose }: Props) {
-  const { items, totalPrice, increase, decrease, removeItem } = useCart();
+  const { items, totalPrice, increase, decrease, removeItem, clearCart } =
+    useCart();
 
   // Lấy tham số từ URL (ví dụ: ?table=B01)
   const searchParams = useSearchParams();
@@ -31,6 +33,9 @@ export default function CartSheet({ open, onClose }: Props) {
   // State điều khiển hiệu ứng
   const [isClosing, setIsClosing] = useState(false);
   const [showToast, setShowToast] = useState(false);
+
+  // State loading khi đang gửi
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Cập nhật lại số bàn nếu URL thay đổi (trường hợp navigate mà không reload)
   useEffect(() => {
@@ -56,6 +61,70 @@ export default function CartSheet({ open, onClose }: Props) {
       return () => clearTimeout(closeTimer);
     }
   }, [items.length, open, onClose]);
+
+  const handleSubmitOrder = async () => {
+    if (items.length === 0) return;
+    if (!tableNumber) {
+      alert("Vui lòng nhập số bàn hoặc quét mã QR!");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Tìm ID bàn
+      const { data: tableData, error: tableError } = await supabase
+        .from("tables")
+        .select("id")
+        .eq("code", tableNumber) // B01 B02 ...
+        .single();
+
+      if (tableError || !tableData) {
+        throw new Error(`Không tìm thấy bàn ${tableNumber}`);
+      }
+
+      // Tạo record trong 'orders'
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          table_id: tableData.id,
+          status: "PENDING", // Trạng thái chờ
+          total_amount: totalPrice,
+          customer_name: customerName,
+          note: note,
+          // created_at tự động sinh
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Chi tiết món
+      const orderItemsData = items.map((item) => ({
+        order_id: orderData.id,
+        food_id: item.foodId,
+        quantity: item.quantity,
+        price: item.price, // Lưu giá tại thời điểm gọi
+        food_name: item.name, // Lưu tên món tại thời điểm gọi
+      }));
+
+      // Lưu chi tiết món vô 'order_items'
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItemsData);
+
+      if (itemsError) throw itemsError;
+
+      // Thành công -> Xóa giỏ hàng & Đóng popup
+      alert("Đặt món thành công! Bếp đang chuẩn bị.");
+      clearCart();
+    } catch (error: any) {
+      console.error("Lỗi đặt món:", error);
+      alert("Có lỗi xảy ra: " + (error.message || error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -272,8 +341,27 @@ export default function CartSheet({ open, onClose }: Props) {
                 {totalPrice.toLocaleString()}đ
               </span>
             </div>
-            <button className="w-full py-3.5 rounded-full bg-orange-600 text-white font-bold text-base shadow-md shadow-orange-600/20 hover:bg-orange-700 active:scale-[0.98] transition flex items-center justify-center gap-2">
-              <span className="text-sm">🚀</span> GỬI ĐƠN NGAY
+            <button
+              onClick={handleSubmitOrder}
+              disabled={isSubmitting || items.length === 0} // Disable khi đang gửi or giỏ trống
+              className={`w-full py-3.5 rounded-full font-bold text-base shadow-md transition flex items-center justify-center gap-2
+                 ${
+                   isSubmitting
+                     ? "bg-gray-400 cursor-wait text-white"
+                     : "bg-orange-600 text-white shadow-orange-600/20 hover:bg-orange-700 active:scale-[0.98]"
+                 }
+              `}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                  Đang gửi...
+                </>
+              ) : (
+                <>
+                  <span className="text-sm">🚀</span> GỬI ĐƠN NGAY
+                </>
+              )}
             </button>
           </div>
         </div>
