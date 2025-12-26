@@ -7,6 +7,7 @@ export type CartItem = {
   name: string;
   price: number;
   quantity: number;
+  image_url?: string | null;
 };
 
 type CartContextType = {
@@ -16,6 +17,7 @@ type CartContextType = {
   decrease: (foodId: number) => void;
   totalQuantity: number;
   totalPrice: number;
+  removeItem: (foodId: number) => void;
 };
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -55,6 +57,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const removeItem = (foodId: number) => {
+    setItems((prev) => prev.filter((i) => i.foodId !== foodId));
+  };
+
   const totalQuantity = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + i.quantity * i.price, 0);
 
@@ -67,6 +73,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         decrease,
         totalQuantity,
         totalPrice,
+        removeItem,
       }}
     >
       {children}
