@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import MenuPage from "./MenuPage";
 
@@ -15,7 +16,13 @@ export default function OrderPage() {
           <div className="text-sm text-gray-600">Giao tận bàn {table}</div>
         </div>
 
-        <MenuPage />
+        <Suspense
+          fallback={
+            <div className="text-center p-10">⏳ Đang tải thực đơn...</div>
+          }
+        >
+          <MenuPage />
+        </Suspense>
       </div>
     </main>
   );
