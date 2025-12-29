@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import MenuPage from "./MenuPage";
 
 function OrderContent() {
-  const params = useSearchParams(); // Gọi hook ở trong này mới đúng
+  const params = useSearchParams();
   const table = params.get("table");
 
   return (
@@ -26,10 +26,12 @@ export default function OrderPage() {
     <main className="bg-gray-50 min-h-screen">
       <Suspense
         fallback={
-          <div className="text-center p-10">⏳ Đang tải thực đơn...</div>
+          <div className="text-center p-10 font-bold text-gray-500">
+            ⏳ Đang tải thực đơn...
+          </div>
         }
       >
-        <MenuPage />
+        <OrderContent />
       </Suspense>
     </main>
   );
