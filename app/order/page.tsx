@@ -27,7 +27,7 @@ export default function OrderPage() {
       <Suspense
         fallback={
           <div className="text-center p-10 font-bold text-gray-500">
-            ⏳ Đang tải thực đơn...
+            Đang tải thực đơn...
           </div>
         }
       >
