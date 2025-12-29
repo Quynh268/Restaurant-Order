@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-// Nhận props searchParams (Server Component không cần dùng hook)
 export default function Home({
   searchParams,
 }: {
