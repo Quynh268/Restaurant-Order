@@ -21,7 +21,6 @@ export default function CartSheet({ open, onClose }: Props) {
   const { items, totalPrice, increase, decrease, removeItem, clearCart } =
     useCart();
 
-  // Lấy tham số từ URL (ví dụ: ?table=B01)
   const searchParams = useSearchParams();
   const tableFromUrl = searchParams.get("table") || "";
 
@@ -65,7 +64,7 @@ export default function CartSheet({ open, onClose }: Props) {
   const handleSubmitOrder = async () => {
     if (items.length === 0) return;
     if (!tableNumber) {
-      alert("Vui lòng nhập số bàn hoặc quét mã QR!");
+      alert("Vui lòng nhập đúng số bàn!");
       return;
     }
 
@@ -93,7 +92,7 @@ export default function CartSheet({ open, onClose }: Props) {
           customer_name: customerName,
           note: note,
           order_type: orderType,
-          // created_at tự động sinh
+          // created_at tự sinh
         })
         .select()
         .single();
@@ -116,7 +115,7 @@ export default function CartSheet({ open, onClose }: Props) {
 
       if (itemsError) throw itemsError;
 
-      // Thành công -> Xóa giỏ hàng & Đóng popup
+      // Thành công -> Xóa giỏ hàng -> Đóng popup
       alert("Đặt món thành công! Bếp đang chuẩn bị.");
       clearCart();
     } catch (error: any) {
@@ -198,7 +197,7 @@ export default function CartSheet({ open, onClose }: Props) {
             <div className="text-center w-full">
               <h2 className="text-lg font-bold text-gray-900">Chi Tiết Đơn</h2>
               <p className="text-[11px] text-gray-500 font-medium">
-                Cửa hàng đang chờ bạn gửi đơn
+                Chúng tôi đang chờ bạn gửi đơn
               </p>
             </div>
             <button
@@ -306,8 +305,8 @@ export default function CartSheet({ open, onClose }: Props) {
                     value={tableNumber}
                     onChange={(e) => setTableNumber(e.target.value)}
                     placeholder="VD: B01"
-                    // KHÔNG sửa được số bàn khi quét QR:
-                    // readOnly={!!tableFromUrl}
+                    // KHÔNG sửa được số bàn khi quét QR
+                    readOnly={!!tableFromUrl}
                     className={inputStyle}
                   />
                 </div>
@@ -326,7 +325,7 @@ export default function CartSheet({ open, onClose }: Props) {
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Ít cay, không lấy mắm tôm, ăn nước mắm..."
+                  placeholder="Thêm chén nước mắm, quét nhầm mã bàn..."
                   className={`${inputStyle} resize-none h-20 py-3`}
                 />
               </div>
@@ -360,7 +359,7 @@ export default function CartSheet({ open, onClose }: Props) {
                 </>
               ) : (
                 <>
-                  <span className="text-sm">🚀</span> GỬI ĐƠN NGAY
+                  <span className="text-sm"></span> GỌI MÓN
                 </>
               )}
             </button>

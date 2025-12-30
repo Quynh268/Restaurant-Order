@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 
+// --- Ko cho Next.js cache trang này ---
+export const dynamic = "force-dynamic";
+
 export default function Home({
   searchParams,
 }: {

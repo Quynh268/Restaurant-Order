@@ -3,7 +3,6 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import MenuPage from "./MenuPage";
-import { CartProvider } from "@/app/context/CartContext";
 import FloatingCartBar from "./FloatingCartBar";
 import CartSheet from "./CartSheet";
 
@@ -14,20 +13,20 @@ function OrderContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   return (
-    <CartProvider>
-      <div className="max-w-md mx-auto p-4 pb-28">
-        {" "}
-        <div className="mb-4">
-          <div className="text-lg font-bold text-black">Món ngon nóng hổi</div>
-          <div className="text-sm text-gray-600">
-            {table ? `Giao tận bàn ${table}` : "Vui lòng chọn bàn"}
-          </div>
+    <div className="max-w-md mx-auto p-4 pb-28">
+      {" "}
+      <div className="mb-4">
+        <div className="text-lg font-bold text-black">Món ngon nóng hổi</div>
+        <div className="text-sm text-gray-600">
+          {table
+            ? `Giao tận bàn ${table} cho khách iu`
+            : "Khách iu vui lòng chọn đúng bàn"}
         </div>
-        <MenuPage />
-        <FloatingCartBar onOpen={() => setIsCartOpen(true)} />
-        <CartSheet open={isCartOpen} onClose={() => setIsCartOpen(false)} />
       </div>
-    </CartProvider>
+      <MenuPage />
+      <FloatingCartBar onOpen={() => setIsCartOpen(true)} />
+      <CartSheet open={isCartOpen} onClose={() => setIsCartOpen(false)} />
+    </div>
   );
 }
 export default function OrderPage() {
