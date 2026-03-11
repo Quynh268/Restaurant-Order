@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 // --- Ko cho Next.js cache trang này ---
 export const dynamic = "force-dynamic";
 
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const table = searchParams?.table;
+  const params = await searchParams;
+  const table = params?.table;
 
   if (table) {
     redirect(`/order?table=${table}`);

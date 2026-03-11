@@ -19,6 +19,7 @@ export type OrderUI = {
   customer_name: string;
   paymentMethod?: "CASH" | "CK" | null;
   orderType: "DINE_IN" | "TAKEAWAY";
+  note?: string | null;
   items: {
     food_id: number;
     food_name: string;
@@ -26,6 +27,33 @@ export type OrderUI = {
     price: number;
     image_url?: string | null;
   }[];
+};
+
+// Kiểu dữ liệu thô trả về từ bảng order_items
+type RawOrderItem = {
+  food_id: number;
+  food_name?: string;
+  quantity: number;
+  price: number;
+  foods?: {
+    name: string;
+    image_url?: string;
+  };
+};
+
+// Kiểu dữ liệu thô trả về từ bảng orders sau khi join
+type RawOrder = {
+  id: number;
+  status: OrderStatus;
+  total_amount: number;
+  created_at: string;
+  customer_name?: string;
+  order_type?: "DINE_IN" | "TAKEAWAY";
+  note?: string | null;
+  daily_number?: number;
+  tables?: { code: string } | null;
+  order_items?: RawOrderItem[];
+  payments?: { method: "CASH" | "CK" } | { method: "CASH" | "CK" }[] | null;
 };
 
 type Tab = "pending" | "confirmed" | "await_payment" | "done";
@@ -58,7 +86,8 @@ export default function OrdersPage() {
       .from("orders")
       .select(
         `
-        id, status, total_amount, created_at, customer_name, order_type,
+        id, status, total_amount, created_at, customer_name,
+        order_type, note, daily_number,
         tables:table_id ( code ),
         order_items (
           food_id,
@@ -71,40 +100,57 @@ export default function OrdersPage() {
       `
       )
       .in("status", TAB_TO_STATUS[tab])
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: tab != "done" });
 
     if (!error) {
-      const mapped: OrderUI[] = (data ?? []).map((o: any) => {
+      // Ép kiểu an toàn bằng as unknown as RawOrder[]
+      const mapped: OrderUI[] = ((data as unknown) as RawOrder[] ?? []).map((o) => {
+        
+        // Xử lý Payment an toàn
         let method = null;
-
-        // Xử lý payment (chấp nhận cả mảng và object)
         if (Array.isArray(o.payments) && o.payments.length > 0) {
           method = o.payments[0].method;
-        } else if (o.payments && typeof o.payments === "object") {
+        } else if (o.payments && !Array.isArray(o.payments)) {
           method = o.payments.method;
         }
 
+        // Lấy dữ liệu Table (trích xuất phần tử đầu tiên nếu nó là mảng)
+        const tableData = Array.isArray(o.tables) ? o.tables[0] : o.tables;
+
+        const dateObj = new Date(o.created_at);
+        const dd = dateObj.getDate().toString().padStart(2, "0");
+        const mm = (dateObj.getMonth() + 1).toString().padStart(2, "0");
+        const yyyy = dateObj.getFullYear().toString();
+        const orderSeq = (o.daily_number || o.id).toString().padStart(4, "0");
+
+        // Ghép chuỗi code theo format: #00000000000000
+        const orderCode = `#${dd}${mm}${yyyy}${orderSeq}`;
+
         return {
-          // --- CÁC TRƯỜNG BẮT BUỘC (ĐÃ SỬA LẠI ĐẦY ĐỦ) ---
           id: o.id,
-          code: `#${o.id.toString().padStart(6, "0")}`,
-          tableCode: o.tables?.code ?? "—",
+          code: orderCode,
+          tableCode: tableData?.code ?? "—",
           status: o.status,
           total_amount: o.total_amount,
           created_at: o.created_at,
           customer_name: o.customer_name || "Vãng lai",
-          paymentMethod: method,
+          paymentMethod: method as "CASH" | "CK" | null,
           orderType: o.order_type || "DINE_IN",
+          note: o.note,
 
-          // --- DANH SÁCH MÓN ---
-          items:
-            o.order_items?.map((item: any) => ({
+          // 3. Lấy dữ liệu Order Items
+          items: o.order_items?.map((item) => {
+            // Lấy dữ liệu Food (trích xuất phần tử đầu tiên nếu nó là mảng)
+            const foodData = Array.isArray(item.foods) ? item.foods[0] : item.foods;
+            
+            return {
               food_id: item.food_id,
-              food_name: item.food_name || item.foods?.name,
+              food_name: item.food_name || foodData?.name || "Món không tên", // <-- Lỗi đỏ đã được sửa ở đây
               quantity: item.quantity,
               price: item.price,
-              image_url: item.foods?.image_url,
-            })) || [],
+              image_url: foodData?.image_url, // <-- Lỗi đỏ đã được sửa ở đây
+            };
+          }) || [],
         };
       });
       setOrders(mapped);
@@ -116,24 +162,12 @@ export default function OrdersPage() {
   }, [tab]);
 
   // --- HÀM ĐẾM SỐ LƯỢNG ---
-  const fetchCounts = async () => {
+  const fetchCounts = useCallback(async () => {
     const [p, c, a, d] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "PENDING"),
-      supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "CONFIRMED"),
-      supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "AWAIT_PAYMENT"),
-      supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "DONE"),
+      supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "PENDING"),
+      supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "CONFIRMED"),
+      supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "AWAIT_PAYMENT"),
+      supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "DONE"),
     ]);
 
     setCounts({
@@ -142,9 +176,8 @@ export default function OrdersPage() {
       await_payment: a.count || 0,
       done: d.count || 0,
     });
-  };
+  }, []);
 
-  // --- USE EFFECT ---
   useEffect(() => {
     fetchOrders();
     fetchCounts();
@@ -164,7 +197,7 @@ export default function OrdersPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchOrders]);
+  }, [fetchOrders, fetchCounts]);
 
   // --- CÁC HÀM ACTION ---
   async function updateStatus(id: number, status: OrderStatus) {
@@ -195,8 +228,9 @@ export default function OrdersPage() {
       if (payError) throw payError;
 
       await updateStatus(order.id, "DONE");
-    } catch (err: any) {
-      alert("Lỗi thanh toán: " + err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert("Lỗi thanh toán: " + error.message);
     }
   }
 

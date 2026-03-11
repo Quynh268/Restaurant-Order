@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import FoodCard from "./FoodCard"; // Component hiển thị từng món (bạn đã có)
+import FoodCard from "./FoodCard";
+import { Food, Category } from "@/lib/type";
+import Footer from "./Footer";
 
 export default function MenuPage() {
-  const [foods, setFoods] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [foods, setFoods] = useState<Food[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // State lưu category đang chọn
   const [selectedCatId, setSelectedCatId] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchMenu() {
-      // 1. Lấy Categories
+      // Lấy Categories
       const { data: cats } = await supabase
         .from("categories")
         .select("*")
@@ -22,11 +24,10 @@ export default function MenuPage() {
 
       if (cats && cats.length > 0) {
         setCategories(cats);
-        // --- THAY ĐỔI: Mặc định chọn category đầu tiên ---
         setSelectedCatId(cats[0].id);
       }
 
-      // 2. Lấy Foods (Kèm combo items để hiển thị thành phần)
+      // Lấy Foods (Kèm combo items để hiển thị thành phần)
       const { data: foodData } = await supabase
         .from("foods")
         .select(
@@ -40,8 +41,8 @@ export default function MenuPage() {
 
       if (foodData) {
         // Sắp xếp: Combo -> Món thường -> Món lẻ
-        const sorted = foodData.sort((a: any, b: any) => {
-          const getScore = (item: any) => {
+        const sorted = foodData.sort((a: Food, b: Food) => {
+          const getScore = (item: Food) => {
             if (item.is_combo) return 1;
             if (item.is_addon) return 3;
             return 2;
@@ -71,7 +72,7 @@ export default function MenuPage() {
 
   return (
     <div className="pb-20">
-      {/* 1. THANH DANH MỤC (Ngang) - ĐÃ BỎ NÚT TẤT CẢ */}
+      {/* THANH DANH MỤC (Ngang) */}
       <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3 flex gap-3 overflow-x-auto no-scrollbar">
         {categories.map((cat) => (
           <button
@@ -88,7 +89,7 @@ export default function MenuPage() {
         ))}
       </div>
 
-      {/* 2. DANH SÁCH MÓN ĂN */}
+      {/* DANH SÁCH MÓN ĂN */}
       <div className="p-4 space-y-6">
         {/* KHU VỰC COMBO */}
         {comboList.length > 0 && (
@@ -138,6 +139,7 @@ export default function MenuPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

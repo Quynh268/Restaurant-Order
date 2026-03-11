@@ -4,18 +4,27 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import QRModal from "./QRModal";
 
+type Area = {
+  id: number;
+  name: string;
+};
+
+type TableUI = {
+  id: number;
+  code: string;
+  name: string;
+  area_id: number;
+  areas?: { name: string } | null;
+};
+
 export default function TablesPage() {
-  const [tables, setTables] = useState<any[]>([]);
-  const [areas, setAreas] = useState<any[]>([]);
+  const [tables, setTables] = useState<TableUI[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [filterArea, setFilterArea] = useState<number | "ALL">("ALL");
 
   // --- STATE CHỌN NHIỀU BÀN ---
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>([]);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const fetchData = () => {
     Promise.all([
@@ -26,6 +35,10 @@ export default function TablesPage() {
       if (resArea.data) setAreas(resArea.data);
     });
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const filteredTables =
     filterArea === "ALL"

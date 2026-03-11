@@ -2,17 +2,24 @@
 
 import { useEffect, useState } from "react";
 
+type TableData = {
+  id: number;
+  code: string;
+  name?: string;
+  area_id?: number;
+};
+
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  tables: any[]; // Nhận vào mảng các bàn
+  tables: TableData[]; // Nhận vào mảng các bàn
 };
 
 export default function QRModal({ isOpen, onClose, tables }: Props) {
   // Hàm tạo link QR
   const getQrUrl = (tableCode: string) => {
     if (typeof window === "undefined") return "";
-    const orderingUrl = `${window.location.origin}/?table=${tableCode}`;
+    const orderingUrl = `${window.location.origin}/order?table=${tableCode}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
       orderingUrl
     )}`;

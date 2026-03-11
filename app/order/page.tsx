@@ -1,5 +1,6 @@
 "use client";
 
+import { supabase } from "@/lib/supabaseClient";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import MenuPage from "./MenuPage";

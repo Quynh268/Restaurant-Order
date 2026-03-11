@@ -111,6 +111,17 @@ export default function OrdersCard({
         ))}
       </div>
 
+      <div>
+        {order.note && (
+          <div className="p-3 bg-yellow-100 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <span className="font-bold">Note:</span> {order.note}
+            </p>
+          </div>
+        )}
+
+      </div>
+
       {/* --- FOOTER: TỔNG TIỀN & NÚT BẤM --- */}
       <div className="p-4 bg-gray-50/50 border-t border-gray-100 mt-auto">
         <div className="flex justify-between items-end mb-4">
