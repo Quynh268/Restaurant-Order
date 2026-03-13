@@ -3,12 +3,30 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
+type Category = {
+  id: number;
+  name: string;
+  sort_order?: number;
+};
+
+type Food = {
+  id: number;
+  name: string;
+  price: number;
+  category_id: number;
+  is_combo: boolean;
+  is_addon: boolean;
+  image_url: string | null;
+  is_available?: boolean;
+  categories?: { name: string } | null;
+};
+
 export default function MenuPage() {
-  const [foods, setFoods] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [foods, setFoods] = useState<Food[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [selectedCatId, setSelectedCatId] = useState<number | null>(null);
-  const [selectedFood, setSelectedFood] = useState<any | null>(null);
+  const [selectedFood, setSelectedFood] = useState<Food | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -20,6 +38,7 @@ export default function MenuPage() {
     is_combo: false,
     is_addon: false,
     image_url: "" as string | null,
+    is_available: true, // THÊM BIẾN QUẢN LÝ HẾT MÓN
   });
 
   const [comboComponents, setComboComponents] = useState<string[]>([]);
@@ -31,28 +50,25 @@ export default function MenuPage() {
   }, []);
 
   async function fetchData() {
-    // Load danh sách món
     const { data: f } = await supabase
       .from("foods")
       .select("*, categories(name)")
       .order("id", { ascending: false });
 
-    if (f) setFoods(f);
+    if (f) setFoods(f as Food[]);
 
-    // Load danh mục
     const { data: c } = await supabase
       .from("categories")
       .select("*")
       .order("sort_order");
     if (c) {
-      setCategories(c);
+      setCategories(c as Category[]);
       if (!selectedFood && c.length > 0) {
         setFormData((prev) => ({ ...prev, category_id: c[0].id }));
       }
     }
   }
 
-  // --- XỬ LÝ KHI CHỌN MÓN ĐỂ SỬA ---
   useEffect(() => {
     if (selectedFood) {
       setFormData({
@@ -62,12 +78,12 @@ export default function MenuPage() {
         is_combo: selectedFood.is_combo,
         is_addon: selectedFood.is_addon || false,
         image_url: selectedFood.image_url,
+        is_available: selectedFood.is_available !== false, // Mặc định là true nếu null
       });
 
       if (selectedFood.is_combo) fetchComboItems(selectedFood.id);
       else setComboComponents([]);
     } else {
-      // Reset Form
       setFormData({
         name: "",
         price: 0,
@@ -75,6 +91,7 @@ export default function MenuPage() {
         is_combo: false,
         is_addon: false,
         image_url: null,
+        is_available: true,
       });
       setComboComponents([]);
     }
@@ -86,7 +103,7 @@ export default function MenuPage() {
       .select("item_name")
       .eq("combo_id", foodId)
       .order("sort_order");
-    if (data) setComboComponents(data.map((item: any) => item.item_name));
+    if (data) setComboComponents(data.map((item: { item_name: string }) => item.item_name));
   }
 
   const addComboComponent = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -118,7 +135,8 @@ export default function MenuPage() {
         .from("menu-images")
         .getPublicUrl(fileName);
       setFormData((prev) => ({ ...prev, image_url: data.publicUrl }));
-    } catch (err: any) {
+    } catch (error) {
+      const err = error as Error;
       console.error(err);
       alert("Lỗi upload: " + err.message);
     } finally {
@@ -130,7 +148,7 @@ export default function MenuPage() {
     if (!formData.name) return alert("Vui lòng nhập tên món");
     if (isSaving) return;
 
-    setIsSaving(true); // Bắt đầu quá trình Lưu - > Khóa btn
+    setIsSaving(true);
 
     try {
       if (!selectedFood) {
@@ -153,7 +171,7 @@ export default function MenuPage() {
         is_combo: formData.is_combo,
         is_addon: formData.is_addon,
         image_url: formData.image_url,
-        is_available: true,
+        is_available: formData.is_available, // Lưu trạng thái Hết món xuống DB
       };
 
       let savedFoodId = selectedFood?.id;
@@ -192,7 +210,8 @@ export default function MenuPage() {
       alert("Lưu món ăn thành công!");
       fetchData();
       setSelectedFood(null);
-    } catch (err: any) {
+    } catch (error) {
+      const err = error as Error;
       console.error(err);
       alert("Có lỗi xảy ra: " + err.message);
     } finally {
@@ -200,7 +219,6 @@ export default function MenuPage() {
     }
   };
 
-  // --- LOGIC CHIA NHÓM ĐỂ HIỂN THỊ ---
   const filteredFoods = selectedCatId
     ? foods.filter((f) => f.category_id === selectedCatId)
     : foods;
@@ -209,8 +227,7 @@ export default function MenuPage() {
   const addonList = filteredFoods.filter((f) => f.is_addon);
   const mainList = filteredFoods.filter((f) => !f.is_combo && !f.is_addon);
 
-  // Component con để render từng món (đỡ lặp code)
-  const FoodItemCard = ({ food }: { food: any }) => (
+  const FoodItemCard = ({ food }: { food: Food }) => (
     <div
       onClick={() => setSelectedFood(food)}
       className={`p-3 rounded-xl border cursor-pointer flex items-center gap-3 transition bg-white
@@ -219,15 +236,19 @@ export default function MenuPage() {
             ? "border-orange-500 ring-1 ring-orange-500 bg-orange-50"
             : "border-gray-100 hover:bg-gray-50"
         }
+        ${food.is_available === false ? "opacity-60 bg-gray-50" : ""} 
       `}
     >
       <img
         src={food.image_url || "/placeholder.png"}
-        className="w-10 h-10 rounded-lg object-cover bg-gray-200"
+        className={`w-10 h-10 rounded-lg object-cover bg-gray-200 ${food.is_available === false ? "grayscale" : ""}`}
       />
       <div className="text-left flex-1 min-w-0">
-        <div className="text-sm font-bold text-gray-800 line-clamp-1">
+        <div className="text-sm font-bold text-gray-800 line-clamp-1 flex items-center gap-2">
           {food.name}
+          {food.is_available === false && (
+            <span className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-black tracking-wider">HẾT</span>
+          )}
         </div>
         <div className="text-xs text-gray-500">
           {food.price.toLocaleString()}đ
@@ -238,7 +259,6 @@ export default function MenuPage() {
 
   return (
     <div className="flex h-[calc(100vh-100px)] gap-6 animate-fade-in">
-      {/* --- CỘT TRÁI: DANH SÁCH --- */}
       <div className="w-1/3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col">
         <h2 className="font-bold text-gray-800 mb-4">Danh sách món</h2>
 
@@ -280,7 +300,6 @@ export default function MenuPage() {
             + Thêm món mới
           </button>
 
-          {/* NHÓM 1: COMBO */}
           {comboList.length > 0 && (
             <div className="mb-6">
               <h3 className="text-xs font-bold text-orange-600 uppercase mb-2 pl-1 flex items-center gap-1">
@@ -294,7 +313,6 @@ export default function MenuPage() {
             </div>
           )}
 
-          {/* NHÓM 2: MÓN CHÍNH */}
           {mainList.length > 0 && (
             <div className="mb-6">
               <h3 className="text-xs font-bold text-gray-600 uppercase mb-2 pl-1">
@@ -308,7 +326,6 @@ export default function MenuPage() {
             </div>
           )}
 
-          {/* NHÓM 3: MÓN LẺ */}
           {addonList.length > 0 && (
             <div className="mb-6">
               <h3 className="text-xs font-bold text-gray-400 uppercase mb-2 pl-1">
@@ -322,7 +339,6 @@ export default function MenuPage() {
             </div>
           )}
 
-          {/* Empty State */}
           {filteredFoods.length === 0 && (
             <div className="text-center text-gray-400 text-sm py-10 italic">
               Chưa có món nào trong danh mục này.
@@ -331,7 +347,6 @@ export default function MenuPage() {
         </div>
       </div>
 
-      {/* --- CỘT PHẢI: FORM NHẬP LIỆU --- */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 p-8 overflow-y-auto">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-black text-gray-800">
@@ -428,48 +443,62 @@ export default function MenuPage() {
               />
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex items-end pb-3 gap-6">
-                <label
-                  className={`flex items-center gap-2 cursor-pointer select-none ${
-                    formData.is_addon ? "opacity-50 pointer-events-none" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.is_combo}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        is_combo: e.target.checked,
-                        is_addon: false,
-                      })
-                    }
-                    className="w-5 h-5 accent-orange-500 rounded cursor-pointer"
-                  />
-                  <span className="font-bold text-gray-700">Gói Combo</span>
-                </label>
+            <div className="flex items-end gap-2">
+              <label
+                className={`flex items-center gap-2 cursor-pointer select-none ${
+                  formData.is_addon ? "opacity-50 pointer-events-none" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.is_combo}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      is_combo: e.target.checked,
+                      is_addon: false,
+                    })
+                  }
+                  className="w-5 h-5 accent-orange-500 rounded cursor-pointer"
+                />
+                <span className="font-bold text-gray-700">Gói Combo</span>
+              </label>
 
-                <label
-                  className={`flex items-center gap-2 cursor-pointer select-none ${
-                    formData.is_combo ? "opacity-50 pointer-events-none" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.is_addon}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        is_addon: e.target.checked,
-                        is_combo: false,
-                      })
-                    }
-                    className="w-5 h-5 accent-orange-500 rounded cursor-pointer"
-                  />
-                  <span className="font-bold text-gray-700">Món Thêm</span>
-                </label>
-              </div>
+              <label
+                className={`flex items-center gap-2 cursor-pointer select-none ${
+                  formData.is_combo ? "opacity-50 pointer-events-none" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.is_addon}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      is_addon: e.target.checked,
+                      is_combo: false,
+                    })
+                  }
+                  className="w-5 h-5 accent-orange-500 rounded cursor-pointer"
+                />
+                <span className="font-bold text-gray-700">Món Thêm</span>
+              </label>
+
+              {/* TÙY CHỌN HẾT MÓN */}
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!formData.is_available}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      is_available: !e.target.checked,
+                    })
+                  }
+                  className="w-5 h-5 accent-red-500 rounded cursor-pointer"
+                />
+                <span className="font-bold text-red-500">Hết món</span>
+              </label>
             </div>
 
             {formData.is_combo ? (

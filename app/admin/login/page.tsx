@@ -15,9 +15,15 @@ export default function AdminLogin() {
     if (pin === "123456") {
       // Set cookie có hạn 1 ngày (86400 giây)
       document.cookie = "staff_auth=true; path=/; max-age=86400";
-      router.push("/admin/orders"); // Đẩy vào trang quản lý
+      router.push("/admin/orders");
       router.refresh();
-    } else {
+    } else if (pin === "000000") {
+      // Mã PIN đặc biệt để vào thẳng trang quản lý menu (dành cho chủ quán)
+      document.cookie = "staff_auth=true; path=/; max-age=86400";
+      router.push("/admin/areas");
+      router.refresh();
+    }
+    else {
       setError(true);
       setPin("");
     }

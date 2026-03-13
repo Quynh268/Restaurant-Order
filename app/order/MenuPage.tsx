@@ -27,16 +27,11 @@ export default function MenuPage() {
         setSelectedCatId(cats[0].id);
       }
 
-      // Lấy Foods (Kèm combo items để hiển thị thành phần)
+      // Lấy Foods (Kèm combo items)
+      // ⚠️ ĐÃ XÓA .eq("is_available", true) ĐỂ LẤY CẢ CÁC MÓN ĐÃ HẾT VỀ ĐÓNG DẤU
       const { data: foodData } = await supabase
         .from("foods")
-        .select(
-          `
-            *,
-            combo_items ( item_name )
-        `
-        )
-        .eq("is_available", true)
+        .select(`*, combo_items ( item_name )`)
         .order("id", { ascending: false });
 
       if (foodData) {
@@ -59,19 +54,33 @@ export default function MenuPage() {
     fetchMenu();
   }, []);
 
-  // --- LỌC MÓN THEO DANH MỤC ĐANG CHỌN ---
-  // Nếu chưa load xong (selectedCatId null) thì tạm thời list rỗng để tránh hiện tất cả
   const filteredFoods = selectedCatId
     ? foods.filter((f) => f.category_id === selectedCatId)
     : [];
 
-  // --- TÁCH NHÓM ĐỂ HIỂN THỊ ---
   const comboList = filteredFoods.filter((f) => f.is_combo);
   const addonList = filteredFoods.filter((f) => f.is_addon);
   const mainList = filteredFoods.filter((f) => !f.is_combo && !f.is_addon);
 
+  // --- HÀM BỌC FOOD CARD ĐỂ ĐÓNG DẤU (VIẾT GỘP CHO ĐỠ RỐI CODE) ---
+  const renderFoodWithStamp = (food: Food) => (
+    <div key={food.id} className="relative">
+      {/* NẾU HẾT MÓN -> HIỆN MÀNG CHẮN */}
+      {food.is_available === false && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-50/60 rounded-xl backdrop-blur-[1px] cursor-not-allowed">
+          
+        </div>
+      )}
+
+      {/* THẺ MÓN ĂN GỐC (Bị làm mờ và chặn click nếu hết món) */}
+      <div className={food.is_available === false ? "opacity-60 grayscale-[0.5] pointer-events-none" : ""}>
+        <FoodCard food={food} />
+      </div>
+    </div>
+  );
+
   return (
-    <div className="pb-20">
+    <div className="pb-4">
       {/* THANH DANH MỤC (Ngang) */}
       <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3 flex gap-3 overflow-x-auto no-scrollbar">
         {categories.map((cat) => (
@@ -91,6 +100,7 @@ export default function MenuPage() {
 
       {/* DANH SÁCH MÓN ĂN */}
       <div className="p-4 space-y-6">
+        
         {/* KHU VỰC COMBO */}
         {comboList.length > 0 && (
           <div>
@@ -98,9 +108,7 @@ export default function MenuPage() {
               🔥 Combo Hot
             </h3>
             <div className="grid grid-cols-1 gap-3">
-              {comboList.map((food) => (
-                <FoodCard key={food.id} food={food} />
-              ))}
+              {comboList.map(renderFoodWithStamp)}
             </div>
           </div>
         )}
@@ -112,9 +120,7 @@ export default function MenuPage() {
               Món Ngon
             </h3>
             <div className="grid grid-cols-1 gap-3">
-              {mainList.map((food) => (
-                <FoodCard key={food.id} food={food} />
-              ))}
+              {mainList.map(renderFoodWithStamp)}
             </div>
           </div>
         )}
@@ -126,9 +132,7 @@ export default function MenuPage() {
               Món Gọi Thêm
             </h3>
             <div className="grid gap-3">
-              {addonList.map((food) => (
-                <FoodCard key={food.id} food={food} />
-              ))}
+              {addonList.map(renderFoodWithStamp)}
             </div>
           </div>
         )}

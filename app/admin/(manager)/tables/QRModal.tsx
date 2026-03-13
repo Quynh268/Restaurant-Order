@@ -53,19 +53,20 @@ export default function QRModal({ isOpen, onClose, tables }: Props) {
           className="p-6 overflow-y-auto bg-gray-50 print:bg-white print:p-0 print:overflow-visible"
         >
           {/* GRID LAYOUT: Để in đẹp trên A4, ta chia lưới */}
-          <div className="grid grid-cols-1 gap-6 print:grid-cols-2 print:gap-4 print:w-full">
+          <div className="grid grid-cols-1 gap-6 print:grid-cols-3 print:gap-3 print:w-full">
             {tables.map((table) => (
               <div
                 key={table.id}
-                className="break-inside-avoid border-4 border-orange-500 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm bg-white print:shadow-none print:border-black print:h-[350px]"
+                // Bỏ h-[350px], làm viền mỏng hơn khi in, thu nhỏ padding
+                className="break-inside-avoid border-4 border-orange-500 rounded-3xl p-4 flex flex-col items-center justify-between shadow-sm bg-white print:shadow-none print:border-2 print:border-black print:rounded-xl print:p-3"
               >
-                {/* Tên quán */}
-                <div className="uppercase font-black text-lg text-orange-600 tracking-widest print:text-black">
+                {/* Tên quán - Thu nhỏ font chữ khi in */}
+                <div className="uppercase font-black text-lg text-orange-600 tracking-widest print:text-black print:text-[11px]">
                   RESTAURANT ORDER
                 </div>
 
-                {/* QR Code */}
-                <div className="w-40 h-40 bg-gray-50 my-2">
+                {/* QR Code - Giảm kích thước ảnh khi in xuống còn ~100px */}
+                <div className="w-40 h-40 bg-gray-50 my-2 print:w-24 print:h-24 print:my-1.5 print:bg-white">
                   <img
                     src={getQrUrl(table.code)}
                     alt={`QR ${table.code}`}
@@ -75,10 +76,11 @@ export default function QRModal({ isOpen, onClose, tables }: Props) {
 
                 {/* Tên bàn */}
                 <div className="text-center">
-                  <div className="text-gray-400 text-[10px] font-bold uppercase mb-1 print:text-black">
+                  <div className="text-gray-400 text-[10px] font-bold uppercase mb-1 print:text-black print:text-[8px] print:mb-0.5">
                     Quét mã ngay để gọi món!
                   </div>
-                  <div className="text-3xl font-black text-gray-800 print:text-black">
+                  {/* Chữ BÀN thu nhỏ lại */}
+                  <div className="text-3xl font-black text-gray-800 print:text-black print:text-lg">
                     BÀN {table.code}
                   </div>
                 </div>
@@ -107,6 +109,9 @@ export default function QRModal({ isOpen, onClose, tables }: Props) {
       {/* CSS IN ẤN */}
       <style jsx global>{`
         @media print {
+          @page {
+            margin: 4mm; /* Chỉnh lề trang in */
+          }
           body * {
             visibility: hidden;
           }
@@ -120,16 +125,10 @@ export default function QRModal({ isOpen, onClose, tables }: Props) {
             top: 0;
             width: 100%;
             margin: 0;
-            padding: 20px;
+            padding: 0;
           }
           .break-inside-avoid {
-            page-break-inside: avoid; /* Tránh bị cắt đôi cái tem khi sang trang mới */
-          }
-          .print\\:border-black {
-            border-color: black !important;
-          }
-          .print\\:text-black {
-            color: black !important;
+            page-break-inside: avoid;
           }
         }
       `}</style>
