@@ -71,7 +71,7 @@ export default function MenuPage() {
   const mainList = filteredFoods.filter((f) => !f.is_combo && !f.is_addon);
 
   return (
-    <div className="pb-20">
+    <div className="pb-4">
       {/* THANH DANH MỤC (Ngang) */}
       <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3 flex gap-3 overflow-x-auto no-scrollbar">
         {categories.map((cat) => (

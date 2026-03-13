@@ -11,26 +11,6 @@ export default function ManagerLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  // --- BẢO MẬT: STATE KIỂM TRA ĐĂNG NHẬP ---
-  const [isChecking, setIsChecking] = useState(true);
-
-  // --- LOGIC KIỂM TRA QUYỀN TRUY CẬP ---
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getSession();
-      
-      // Nếu KHÔNG CÓ phiên đăng nhập
-      if (!data.session) {
-        router.replace("/login"); // Đá ra trang login
-      } else {
-        setIsChecking(false); // Có phiên đăng nhập -> Tắt màn hình chờ, cho phép vào
-      }
-    };
-
-    checkUser();
-  }, [router]);
 
   const menuItems = [
     { name: "Danh sách món", href: "/admin/menu", icon: "🍔" },
@@ -44,18 +24,7 @@ export default function ManagerLayout({
       special: true,
     },
   ];
-
-  // --- HIỂN THỊ MÀN HÌNH CHỜ TRONG LÚC SUPABASE KIỂM TRA ---
-  // (Tránh hiện giao diện Admin lên 1 giây rồi mới văng ra login)
-  if (isChecking) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <div className="text-gray-500 font-medium">Đang kiểm tra quyền truy cập...</div>
-      </div>
-    );
-  }
-
+  
   // --- GIAO DIỆN ADMIN KHI ĐÃ ĐĂNG NHẬP THÀNH CÔNG ---
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
